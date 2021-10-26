@@ -1,0 +1,294 @@
+*&---------------------------------------------------------------------*
+*& Include          MZPRG_SU15I01
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*& Module STATUS_0100 OUTPUT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+MODULE status_0100 OUTPUT.
+  SET PF-STATUS 'S100'.
+  SET TITLEBAR 'T100'.
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*& Module STATUS_0200 OUTPUT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+MODULE status_0200 OUTPUT.
+  SET PF-STATUS 'S200'.
+  SET TITLEBAR 'T200'.
+ENDMODULE.
+
+*&---------------------------------------------------------------------*
+*& Module DEFAULT OUTPUT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+MODULE default OUTPUT.
+  IF ztemployee_su15 IS INITIAL AND ls_employee2 IS INITIAL.
+    ls_employee2-pernr = '99999999'.
+    ls_employee2-orgeh = '99999999'.
+    ztemployee_su15-pernr = '10000000'.
+    ztemployee_su15-orgeh = '10000000'.
+
+  ENDIF.
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*& Module ALV_TABLE OUTPUT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+MODULE alv_table OUTPUT.
+  IF go_container IS INITIAL.
+    CREATE OBJECT go_container
+      EXPORTING
+        container_name              = 'MY_AREA'
+      EXCEPTIONS
+        cntl_error                  = 1
+        cntl_system_error           = 2
+        create_error                = 3
+        lifetime_error              = 4
+        lifetime_dynpro_dynpro_link = 5
+        OTHERS                      = 6.
+    IF sy-subrc <> 0.
+      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+                 WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    ENDIF.
+
+
+    CREATE OBJECT go_alv_grid
+      EXPORTING
+        i_parent          = go_container
+      EXCEPTIONS
+        error_cntl_create = 1
+        error_cntl_init   = 2
+        error_cntl_link   = 3
+        error_dp_create   = 4
+        OTHERS            = 5.
+    IF sy-subrc <> 0.
+      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+                 WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    ENDIF.
+
+  ENDIF.
+
+  CLEAR gs_field_cat.
+  CLEAR gt_field_cat.
+  gs_field_cat-fieldname = 'ORGEH'.
+  gs_field_cat-coltext = '부서'.
+  gs_field_cat-col_pos = 1.
+  APPEND gs_field_cat TO gt_field_cat.
+
+  gs_field_cat-fieldname = 'OTEXT'.
+  gs_field_cat-coltext = '부서명'.
+  gs_field_cat-col_pos = 2.
+  APPEND gs_field_cat TO gt_field_cat.
+
+  gs_field_cat-fieldname = 'PERNR'.
+  gs_field_cat-coltext = '사번'.
+  gs_field_cat-col_pos = 3.
+  APPEND gs_field_cat TO gt_field_cat.
+
+  gs_field_cat-fieldname = 'PNAME'.
+  gs_field_cat-coltext = '사원명'.
+  gs_field_cat-col_pos = 4.
+  APPEND gs_field_cat TO gt_field_cat.
+
+  gs_field_cat-fieldname = 'GENDER'.
+  gs_field_cat-coltext = '성별'.
+  gs_field_cat-col_pos = 5.
+  APPEND gs_field_cat TO gt_field_cat.
+
+  gs_field_cat-fieldname = 'ISMANAGER'.
+  gs_field_cat-coltext = '매니저 여부'.
+  gs_field_cat-col_pos = 6.
+  APPEND gs_field_cat TO gt_field_cat.
+
+  CALL METHOD go_alv_grid->set_table_for_first_display
+    EXPORTING
+*     i_buffer_active               =
+*     i_bypassing_buffer            =
+*     i_consistency_check           =
+      i_structure_name              = 'GS_EMPLOYEE'
+*     is_variant                    =
+*     i_save                        =
+*     i_default                     = 'X'
+*     is_layout                     =
+*     is_print                      =
+*     it_special_groups             =
+*     it_toolbar_excluding          =
+*     it_hyperlink                  =
+*     it_alv_graphics               =
+*     it_except_qinfo               =
+*     ir_salv_adapter               =
+    CHANGING
+      it_outtab                     = gt_employee
+      it_fieldcatalog               = gt_field_cat
+*     it_sort                       =
+*     it_filter                     =
+    EXCEPTIONS
+      invalid_parameter_combination = 1
+      program_error                 = 2
+      too_many_lines                = 3
+      OTHERS                        = 4.
+  IF sy-subrc <> 0.
+
+  ENDIF.
+
+    CALL FUNCTION 'GET_DOMAIN_VALUES'
+        EXPORTING
+          domname         = 'ZDGENDER_SU15'
+*          text            = 'X'
+*         FILL_DD07L_TAB  = ' '
+        TABLES
+          values_tab      = gt_gender
+*         VALUES_DD07L    =
+        EXCEPTIONS
+          no_values_found = 1
+          OTHERS          = 2.
+      IF sy-subrc <> 0.
+* Implement suitable error handling here
+      ENDIF.
+
+      CALL FUNCTION 'GET_DOMAIN_VALUES'
+        EXPORTING
+          domname         = 'XFIELD'
+*          text            = 'X'
+*         FILL_DD07L_TAB  = ' '
+        TABLES
+          values_tab      = gt_manager
+*         VALUES_DD07L    =
+        EXCEPTIONS
+          no_values_found = 1
+          OTHERS          = 2.
+      IF sy-subrc <> 0.
+* Implement suitable error handling here
+      ENDIF.
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*& Module STATUS_0300 OUTPUT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+MODULE status_0300 OUTPUT.
+  SET PF-STATUS 'S300'.
+  SET TITLEBAR 'T300'.
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*& Module UPDATE OUTPUT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+MODULE new OUTPUT.
+  IF ok_code = 'SAVE'.
+    IF ztemployee_su15-orgeh = ''.
+      MESSAGE '부서를 입력하시기 바랍니다' TYPE 'E'.
+    ELSEIF ztemployee_su15-pname = ''.
+      MESSAGE '사원명을 입력하시기 바랍니다' TYPE 'E'.
+    ENDIF.
+  ENDIF.
+
+  CALL FUNCTION 'NUMBER_GET_NEXT'
+    EXPORTING
+      nr_range_nr             = '01'
+      object                  = 'ZNPER_15'
+*     QUANTITY                = '1'
+*     SUBOBJECT               = ' '
+*     TOYEAR                  = '0000'
+*     IGNORE_BUFFER           = ' '
+    IMPORTING
+      number                  = ztemployee_su15-pernr
+*     QUANTITY                =
+*     RETURNCODE              =
+    EXCEPTIONS
+      interval_not_found      = 1
+      number_range_not_intern = 2
+      object_not_found        = 3
+      quantity_is_0           = 4
+      quantity_is_not_1       = 5
+      interval_overflow       = 6
+      buffer_overflow         = 7
+      OTHERS                  = 8.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+  ztemployee_su15-chnam = sy-uname.
+  ztemployee_su15-ertim = sy-uzeit.
+  ztemployee_su15-erdat = sy-datum.
+  ztemployee_su15-ernam = sy-uname.
+  ztemployee_su15-chtim = sy-uzeit.
+  ztemployee_su15-chdat = sy-datum.
+
+  INSERT ztemployee_su15.
+  IF sy-subrc <> 0.
+    MESSAGE '새로운 사원 정보가 저장됐습니다.' TYPE 'I'.
+    LEAVE TO SCREEN 100.
+  ELSE.
+    MESSAGE '새로운 사원 저장 중 오류가 발생했습니다.' TYPE 'I'.
+  ENDIF.
+
+
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*& Module EDIT OUTPUT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+MODULE edit OUTPUT.
+
+  IF ok_code = 'SAVE'.
+    IF ls_edit-orgeh = ''.
+      MESSAGE '부서를 입력하시기 바랍니다' TYPE 'E'.
+    ELSEIF ls_edit-pname = ''.
+      MESSAGE '사원명을 입력하시기 바랍니다' TYPE 'E'.
+    ENDIF.
+  ENDIF.
+
+  CALL FUNCTION 'ENQUEUE_EZ_PERNR_SU15'
+    EXPORTING
+      mode_ztemployee_su15 = 'E'
+      mandt                = sy-mandt
+      pernr                = ls_edit-pernr
+*     X_PERNR              = ' '
+*     _SCOPE               = '2'
+*     _WAIT                = ' '
+*     _COLLECT             = ' '
+    EXCEPTIONS
+      foreign_lock         = 1
+      system_failure       = 2
+      OTHERS               = 3.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+  MOVE-CORRESPONDING ls_edit TO ztemployee2.
+  ztemployee2-chdat = sy-datum.
+  ztemployee2-chtim = sy-uzeit.
+  ztemployee2-chnam = sy-uname.
+  ztemployee2-ertim = sy-uzeit.
+  ztemployee2-erdat = sy-datum.
+  ztemployee2-ernam = sy-uname.
+
+  UPDATE ztemployee_su15 FROM ztemployee2.
+  IF sy-subrc = 0.
+    MESSAGE '사원 정보가 변경되었습니다.' TYPE 'I'.
+    LEAVE TO SCREEN 100.
+  ELSE.
+    MESSAGE '사원 정보 변경 중 오류가 발생했습니다.' TYPE 'I'.
+
+  ENDIF.
+
+  CALL FUNCTION 'DEQUEUE_EZ_PERNR_SU15'
+    EXPORTING
+      mode_ztemployee_su15 = 'E'
+      mandt                = sy-mandt
+      pernr                = ls_edit-pernr
+*     X_PERNR              = ' '
+*     _SCOPE               = '3'
+*     _SYNCHRON            = ' '
+*     _COLLECT             = ' '
+    .
+
+ENDMODULE.

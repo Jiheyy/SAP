@@ -1,0 +1,226 @@
+*&---------------------------------------------------------------------*
+*& Include          MZPRG_SU15O01
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Module  USER_COMMAND_0100  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE user_command_0100 INPUT.
+  CASE ok_code.
+    WHEN 'BACK'.
+      LEAVE TO SCREEN 0.
+    WHEN 'EXIT'.
+      LEAVE PROGRAM.
+    WHEN 'CANCEL'.
+      LEAVE TO SCREEN 0.
+
+  ENDCASE.
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*&      Module  USER_COMMAND_0200  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE user_command_0200 INPUT.
+
+  CASE ok_code.
+    WHEN 'BACK' OR 'CANCEL'.
+      LEAVE TO SCREEN 0.
+
+    WHEN 'EXIT'.
+      LEAVE PROGRAM.
+
+    WHEN 'SAVE'.
+      IF ls_edit-pname = ''.
+        MESSAGE '사원명을 입력하시기 바랍니다.' TYPE 'I'.
+      ELSEIF ls_edit-orgeh = ''.
+        MESSAGE '부서를 입력하시기 바랍니다.' TYPE 'I'.
+      ELSE.
+        CALL FUNCTION 'ENQUEUE_EZ_PERNR_SU15'
+          EXPORTING
+            mode_ztemployee_su15 = 'E'
+            mandt                = sy-mandt
+            pernr                = ls_edit-pernr
+          EXCEPTIONS
+            foreign_lock         = 1
+            system_failure       = 2
+            OTHERS               = 3.
+        IF sy-subrc <> 0.
+          MESSAGE 'lock error' TYPE 'E'.
+        ENDIF.
+
+
+        MOVE-CORRESPONDING ls_edit TO ztemployee2.
+        ztemployee2-chdat = sy-datum.
+        ztemployee2-chtim = sy-uzeit.
+        ztemployee2-chnam = sy-uname.
+        UPDATE ztemployee_su15 FROM ztemployee2.
+
+        IF sy-subrc = 0.
+          MESSAGE '사원 정보가 변경됐습니다' TYPE 'S'.
+          CALL SCREEN 100.
+        ELSE.
+          MESSAGE '사원 정보 변경 중 오류가 발생했습니다.' TYPE 'E'.
+        ENDIF.
+
+        CALL FUNCTION 'DEQUEUE_EZ_PERNR_SU15'
+          EXPORTING
+            mode_ztemployee_su15 = 'E'
+            mandt                = sy-mandt
+            pernr                = ls_edit-pernr.
+
+      ENDIF.
+
+
+  ENDCASE.
+
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*&      Module  SHOW_ALV  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE show_alv INPUT.
+  CASE ok_code.
+    WHEN 'SEARCH'.
+      CLEAR gt_employee.
+      IF ztemployee_su15-pname IS NOT INITIAL.
+        IF ztemployee_su15-gender IS NOT INITIAL.
+        SELECT * FROM ztemployee_su15 INTO CORRESPONDING FIELDS OF TABLE gt_employee
+          WHERE pernr >= ztemployee_su15-pernr
+          AND pernr <= ls_employee2-pernr
+          AND orgeh >= ztemployee_su15-orgeh
+          AND orgeh <= ls_employee2-orgeh
+           AND pname = ztemployee_su15-pname
+          AND ismanager = ztemployee_su15-ismanager.
+      ELSE.
+        SELECT * FROM ztemployee_su15 INTO CORRESPONDING FIELDS OF TABLE gt_employee
+         WHERE pernr >= ztemployee_su15-pernr AND pernr <= ls_employee2-pernr
+         AND orgeh >= ztemployee_su15-orgeh AND orgeh <= ls_employee2-orgeh
+         AND pname = ztemployee_su15-pname
+         AND ismanager = ztemployee_su15-ismanager.
+      ENDIF.
+    ELSE.
+      IF ztemployee_su15-gender IS NOT INITIAL.
+        SELECT * FROM ztemployee_su15
+        INTO CORRESPONDING FIELDS OF TABLE gt_employee
+        WHERE pernr >= ztemployee_su15-pernr AND pernr <= ls_employee2-pernr
+         AND orgeh >= ztemployee_su15-orgeh AND orgeh <= ls_employee2-orgeh
+         AND gender = ztemployee_su15-gender
+         AND ismanager = ztemployee_su15-ismanager.
+      ELSE.
+        SELECT * FROM ztemployee_su15
+        INTO CORRESPONDING FIELDS OF TABLE gt_employee
+        WHERE pernr >= ztemployee_su15-pernr AND pernr <= ls_employee2-pernr
+         AND orgeh >= ztemployee_su15-orgeh AND orgeh <= ls_employee2-orgeh
+         AND ismanager = ztemployee_su15-ismanager.
+      ENDIF.
+    ENDIF.
+    IF gt_employee[] IS INITIAL.
+      MESSAGE '검색 조건 값이 없습니다.' TYPE 'W'.
+    ENDIF.
+
+
+    LOOP AT gt_employee INTO gs_employee.
+
+      SELECT SINGLE otext FROM ztorgeht_su15 INTO CORRESPONDING FIELDS OF gs_employee
+        WHERE orgeh = gs_employee-orgeh.
+
+        LOOP AT gt_gender.
+          IF gs_employee-gender = gt_gender-domvalue_l.
+            gs_employee-gender = gt_gender-ddtext.
+          ENDIF.
+        ENDLOOP.
+
+        LOOP AT gt_manager.
+          IF gs_employee-ismanager = gt_manager-domvalue_l.
+            gs_employee-ismanager = gt_manager-ddtext.
+          ENDIF.
+        ENDLOOP.
+
+        MODIFY gt_employee FROM gs_employee.
+      ENDLOOP.
+
+
+    WHEN 'CHANGE'.
+      CALL SCREEN 300.
+
+    WHEN 'EDIT'.
+      CALL METHOD go_alv_grid->get_selected_rows
+        IMPORTING
+          et_index_rows = gt_index.
+
+      IF gt_index IS INITIAL.
+        MESSAGE '레코드를 선택하시기 바랍니다.' TYPE 'I'.
+      ELSE.
+        LOOP AT gt_index INTO gs_index.
+          READ TABLE gt_employee INTO ls_edit INDEX gs_index-index.
+        ENDLOOP.
+
+        CALL SCREEN 200.
+      ENDIF.
+  ENDCASE.
+
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*&      Module  USER_COMMAND_0300  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE user_command_0300 INPUT.
+  CASE ok_code.
+    WHEN 'BACK'.
+      LEAVE TO SCREEN 0.
+    WHEN 'EXIT'.
+      LEAVE PROGRAM.
+    WHEN 'CANCEL'.
+      LEAVE TO SCREEN 0.
+    WHEN 'SAVE'.
+      IF ztemployee_su15-orgeh = ''.
+        MESSAGE '부서를 입력하시기 바랍니다' TYPE 'E'.
+      ELSEIF ztemployee_su15-pname = ''.
+        MESSAGE '사원명을 입력하시기 바랍니다' TYPE 'E'.
+      ENDIF.
+
+
+      CALL FUNCTION 'NUMBER_GET_NEXT'
+        EXPORTING
+          nr_range_nr             = '01'
+          object                  = 'ZNPER_15'
+*         QUANTITY                = '1'
+*         SUBOBJECT               = ' '
+*         TOYEAR                  = '0000'
+*         IGNORE_BUFFER           = ' '
+        IMPORTING
+          number                  = ztemployee_su15-pernr
+*         QUANTITY                =
+*         RETURNCODE              =
+        EXCEPTIONS
+          interval_not_found      = 1
+          number_range_not_intern = 2
+          object_not_found        = 3
+          quantity_is_0           = 4
+          quantity_is_not_1       = 5
+          interval_overflow       = 6
+          buffer_overflow         = 7
+          OTHERS                  = 8.
+      IF sy-subrc <> 0.
+        MESSAGE '새로운 사원 저장 중 오류가 발생했습니다.' TYPE 'I'.
+      ELSE.
+        ztemployee_su15-chnam = sy-uname.
+        ztemployee_su15-ertim = sy-uzeit.
+        ztemployee_su15-erdat = sy-datum.
+        ztemployee_su15-ernam = sy-uname.
+        ztemployee_su15-chtim = sy-uzeit.
+        ztemployee_su15-chdat = sy-datum.
+
+        INSERT ztemployee_su15.
+        MESSAGE '새로운 사원 정보가 저장됐습니다.' TYPE 'I'.
+        LEAVE TO SCREEN 100.
+      ENDIF.
+
+
+
+  ENDCASE.
+ENDMODULE.

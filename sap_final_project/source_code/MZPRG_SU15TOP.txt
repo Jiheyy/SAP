@@ -1,0 +1,36 @@
+*&---------------------------------------------------------------------*
+*& Include          MZPRG_SU15TOP
+*&---------------------------------------------------------------------*
+
+TABLES: ztemployee_su15.
+
+TYPES: BEGIN OF gty_employee.
+    INCLUDE TYPE ztemployee_su15.
+TYPES: otext   TYPE zeotext_su15,
+       gentext TYPE char8,
+       ismtext TYPE char8,
+       END OF gty_employee.
+
+DATA: ok_code TYPE sy-ucomm.
+
+DATA: gt_index TYPE lvc_t_row,
+      gs_index LIKE LINE OF gt_index.
+
+DATA: ls_employee2 TYPE ztemployee_su15.
+DATA: ztemployee2 TYPE ztemployee_su15.
+DATA: ls_new TYPE ztemployee_su15.
+DATA: ls_edit TYPE gty_employee.
+
+DATA: go_container TYPE REF TO cl_gui_custom_container,
+      go_alv_grid  TYPE REF TO cl_gui_alv_grid.
+
+DATA: gs_employee TYPE gty_employee,
+      gt_employee TYPE TABLE OF gty_employee.
+
+DATA: gt_field_cat TYPE lvc_t_fcat,
+      gs_field_cat TYPE lvc_s_fcat.
+
+DATA: gs_gender  LIKE dd07v,
+      gt_gender  TYPE TABLE OF dd07v WITH HEADER LINE,
+      gs_manager LIKE dd07v,
+      gt_manager TYPE TABLE OF dd07v WITH HEADER LINE.
